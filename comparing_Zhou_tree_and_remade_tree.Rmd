@@ -1,0 +1,447 @@
+---
+title: "Comparing_OR_trees_to_Zhou"
+author: "Devin Molnau"
+date: "March 4, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Comparing The Zhou Ant Phylogeny to Repllicated tree
+
+```{r include= FALSE}
+library(Biostrings)
+library(ggplot2)
+library(ape)
+library(phangorn)
+library(rlang)
+library(ggtree)
+library(gridExtra)
+#install.packages("devtools")
+library(devtools)
+#install_github("ajrominger/socorro")
+library(socorro)
+setwd("D:/Documents/BoxSync/Nason_Lab/OR/ants/OR_ant_phylogeny")
+
+```
+The first steep is to read in the two phylogeny. Both phylogeny were built using MUSCLE to get the multiple sequence alignments and RAxML to build the trees themselves. 
+```{r}
+zhou_tree<-read.nexus("ant_OR_Zhou_nexus.txt", force.multi = FALSE)
+recreated_tree<-read.nexus("remaking_the_phylogeny/first_iteration_tree/attempted_recreation_of_ant_tree_from_scratch_nexus.txt", force.multi = FALSE)
+```
+
+These two phylogenies can be visualized using the simple command ggtree() from the package ggtree.
+```{r}
+zhou_tree$edge.length[which(is.na(zhou_tree$edge.length))]=0
+recreated_tree$edge.length[which(is.na(recreated_tree$edge.length))]=0
+#which(is.na(recreated_tree$edge.length))
+#which(recreated_tree$edge.length==0)
+
+zhou_vis<-ggtree(zhou_tree, layout="circular") +
+  geom_tiplab(aes(angle=angle), size =1, color='blue') + labs(title="Zhou")
+#zhou_vis
+recreated_vis<-ggtree(recreated_tree, layout="circular") +
+  geom_tiplab(aes(angle=angle), size =1, color='blue') +labs(title="Recreated")
+#recreated_vis
+grid.arrange(zhou_vis, recreated_vis, nrow = 1)
+```
+
+To zoom in on a particular version of a tree we would use the function gzoom(). I zoom in on the root here.
+```{r}
+is.rooted(zhou_tree) #to check to see if the tree is rooted
+the_root<-unlist(zhou_tree$tip.label[1:6]) #create a list of the 6 gene names that make up the ant tree ORCO clade
+gzoom(zhou_tree, the_root) #visualize the clade called the root
+```
+To zoom in on the root of the recreated tree:
+```{r}
+is.rooted(recreated_tree) #to check to see if the tree is rooted
+the_root<-unlist(recreated_tree$tip.label[1:6]) #create a list of the 6 gene names that make up the ant tree ORCO clade
+gzoom(recreated_tree, the_root) #visualize the clade called the root
+```
+
+
+I set the clades that are estabilished in the Zhou paper here. 
+```{r}
+ant_clades= vector(mode = "list",length= 23)
+names(ant_clades)<-c(
+    "Clade_A",
+    "Clade_B",
+    "Clade_C",
+    "Clade_D",
+    "Clade_E",
+    "Clade_F",
+    "Clade_G",
+    "Clade_H",
+    "Clade_I",
+    "Clade_J",
+    "Clade_K",
+    "Clade_L",
+    "Clade_M",
+    "Clade_N",
+    "Clade_O",
+    "Clade_P",
+    "Clade_Q",
+    "Clade_R",
+    "Clade_S",
+    "Clade_T",
+    "Clade_U", 
+    "Clade_V",
+    "Clade_9-exon"
+)
+    ant_clades[["Clade_A"]]<- c("PbOr170","LhOr59")
+    ant_clades[["Clade_B"]]<- c("HsOr188","LhOr210")
+    ant_clades[["Clade_C"]]<- c("AmOr116", "HsOr219")
+    ant_clades[["Clade_D"]]<- c("NvOr121PSE", "CfOr262")
+    ant_clades[["Clade_E"]]<- c("NvOr98","LhOr135")
+    ant_clades[["Clade_F"]]<- c("AmOr171","NvOr263")
+    ant_clades[["Clade_G"]]<- c("NvOr45","PbOr195JF")
+    ant_clades[["Clade_H"]]<- c("NvOr44","PbOr190FIX")
+    ant_clades[["Clade_I"]]<- c("NvOr296","PbOr145")
+    ant_clades[["Clade_J"]]<- c("PbOr154","AmOr84")
+    ant_clades[["Clade_K"]]<- c("AmOr1","PbOr3")
+    ant_clades[["Clade_L"]]<- c("NvOr8","PbOr12")
+    ant_clades[["Clade_M"]]<- c("LhOr146","PbOr56FIX")
+    ant_clades[["Clade_N"]]<- c("NvOr61","LhOr155")
+    ant_clades[["Clade_O"]]<- c("NvOr60","CfOr52")
+    ant_clades[["Clade_P"]]<- c("AmOr65","CfOr101")
+    ant_clades[["Clade_Q"]]<- c("AmOr160","HsOr187")
+    ant_clades[["Clade_R"]]<- c("HsOr179","LhOr207")
+    ant_clades[["Clade_S"]]<- c("PbOr149", "NvOr288")
+    ant_clades[["Clade_T"]]<- c("NvOr25", "HsOr86")
+    ant_clades[["Clade_U"]]<- c("NvOr38", "LhOr180FN")
+    ant_clades[["Clade_V"]]<- c("NvOr64","HsOr127")
+    ant_clades[["Clade_9-exon"]]<-c("LhOr249","PbOr352INT")
+  
+```
+
+
+To find the clades of interest I will use MRCA function from ape to locate and label the clades. 
+To get the terminal leaf names when given a node and a tree:
+```{r}
+get.terminals <- function(node, tree) {
+	    parents <- c(node)
+	    tips <- c()
+	while (length(parents) > 0) {
+		for (parent in parents) {
+			children <- tree$edge[which(tree$edge[,1]==parent),2]
+			parents <- parents[parents!=parent]
+			if (length(children) > 0) {
+				parents <- c(parents, children)
+			} else {
+				tips <- c(tips, parent)
+			}
+		}
+	}
+	return(tips)
+}
+```
+To get the members of the clades:
+```{r}
+clade_siblings<-function(clade_of_interest, tree_of_interest){
+  temp<-MRCA(tree_of_interest, clade_of_interest)
+  return(get.terminals(temp,tree_of_interest))
+}
+
+get_clade_members<-function(clade_list,tree_of_interest){
+  ant_clade_members= vector(mode = "list",length= length(clade_list))
+  names(ant_clade_members)<-names(clade_list)
+  for (i in 1:length(names(clade_list))){
+    if((clade_list[[i]][1]%in% tree_of_interest$tip.label)&(clade_list[[i]][2]%in%tree_of_interest$tip.label)){
+      ant_clade_members[[i]]<-sort(clade_siblings(clade_list[[i]],tree_of_interest))
+    }
+    else{
+      cat(sprintf("Element not found tree. Must add %s manually",names(ant_clades[i])))
+    }
+  }
+  return(ant_clade_members)
+}
+
+ant_clade_members<-get_clade_members(ant_clades,zhou_tree)
+
+ant_clade_members_recreated<-get_clade_members(ant_clades,recreated_tree)
+
+
+```
+To get an individual color for every clade:
+```{r}
+colors<-rainbow(length(names(ant_clade_members)), 
+                s = 1, 
+                v = 1, 
+                start = 0, 
+                end = max(1,length(names(ant_clade_members)) - 1)/length(names(ant_clade_members)), 
+                alpha = 1)
+```
+To get the most common ancestor nodes:
+```{r}
+get_MRCA<-function(clade_list,tree_of_interest){
+  ant_MRCA= vector(mode = "list",length= length(clade_list))
+  names(ant_MRCA)<-names(clade_list)
+  for (i in 1:length(names(clade_list))){
+    if((clade_list[[i]][1]%in% tree_of_interest$tip.label)&(clade_list[[i]][2]%in%tree_of_interest$tip.label)){
+    ant_MRCA[[i]]<-MRCA(tree_of_interest,clade_list[[i]]) 
+    }
+    else{
+      cat(sprintf("Element not found. Must add %s manually",names(ant_clades[i])))
+    }
+  }
+  return(ant_MRCA)
+}
+MRCAs<-get_MRCA(ant_clades,zhou_tree)
+MRCAs_recreated<-get_MRCA(ant_clades,recreated_tree)
+
+
+```
+To find an alternative to the missing member in Clade F. I zoom in on the memmbers in Clade F in the Zhou tree and make a copy of the ant clades that will be used for the recreated tree specifically. The Clade F will be set to a different starting tip that actually exists in the data. 
+```{r}
+ant_clades$Clade_F
+zhou_clade_F<-unlist(zhou_tree$tip.label[ant_clade_members[[6]][1]:ant_clade_members[[6]][length(ant_clade_members[[6]])]])
+sort(zhou_clade_F)
+ant_clades$Clade_F[1] # AmOr171
+ant_clades$Clade_F[2] #NVOr263
+gzoom(zhou_tree,zhou_clade_F)
+ant_clades$Clade_F[1]%in%recreated_tree$tip.label
+MRCA(zhou_tree, ant_clades$Clade_F)
+recreated_clades<-ant_clades
+recreated_clades$Clade_F<-c("HsOr191","NvOr263")
+
+ant_clade_members_recreated<-get_clade_members(recreated_clades,recreated_tree)
+MRCAs_recreated<-get_MRCA(recreated_clades,recreated_tree)
+recreated_clade_F<-unlist(recreated_tree$tip.label[ant_clade_members_recreated[[6]][1]:ant_clade_members_recreated[[6]][length(ant_clade_members_recreated[[6]])]])
+recreated_clade_F
+gzoom(recreated_tree,recreated_clade_F)
+```
+
+To zoom in on Clade A form the Zhou paper:
+```{r}
+zhou_zoom_A<-unlist(zhou_tree$tip.label[ant_clade_members[[1]][1]:ant_clade_members[[1]][length(ant_clade_members[[1]])]])
+gzoom(zhou_tree, zhou_zoom_A)#visualize clade A
+```
+
+To find the clade A in recreated tree:
+```{r}
+MRCAs_recreated<- vector(mode = "list",length= length(ant_clades))
+names(MRCAs_recreated)<-names(ant_clades)
+MRCAs_recreated[1]<-MRCA(recreated_tree,c(ant_clades$Clade_A[1],ant_clades$Clade_A[2]))
+clade_A_recreated<-sort(get.terminals(MRCAs_recreated[1], recreated_tree))
+gzoom(recreated_tree, clade_A_recreated)
+```
+To look and see if the same members are in both clades:
+```{r}
+clade_A_members_recreated<-unlist(recreated_tree$tip.label[clade_A_recreated[1]:clade_A_recreated[length(clade_A_recreated)]])
+clade_A_members_recreated
+clade_A_members_recreated%in% zhou_zoom_A
+zhou_zoom_A %in% clade_A_members_recreated
+```
+
+To find the clade B in recreated tree:
+```{r}
+
+MRCAs_recreated[2]<-MRCA(recreated_tree,c(ant_clades$Clade_B[1],ant_clades$Clade_B[2]))
+clade_B_recreated<-sort(get.terminals(MRCAs_recreated[2], recreated_tree))
+clade_B_members_recreated<-unlist(recreated_tree$tip.label[clade_B_recreated[1]:clade_B_recreated[length(clade_B_recreated)]])
+
+gzoom(recreated_tree, clade_B_recreated)
+zhou_zoom_B<-unlist(zhou_tree$tip.label[ant_clade_members[[2]][1]:ant_clade_members[[2]][length(ant_clade_members[[2]])]])
+clade_B_members_recreated%in% zhou_zoom_B
+zhou_zoom_B %in% clade_B_members_recreated
+gzoom(zhou_tree, zhou_zoom_B)#visualize clade A
+```
+
+To look at clade C in the recreated tree:
+```{r}
+MRCAs_recreated[3]<-MRCA(recreated_tree,c(ant_clades$Clade_C[1],ant_clades$Clade_C[2]))
+clade_C_recreated<-sort(get.terminals(MRCAs_recreated[3], recreated_tree))
+clade_C_members_recreated<-unlist(recreated_tree$tip.label[clade_C_recreated[1]:clade_C_recreated[length(clade_C_recreated)]])
+zhou_zoom_C<-unlist(zhou_tree$tip.label[ant_clade_members[[3]][1]:ant_clade_members[[3]][length(ant_clade_members[[3]])]])
+zhou_zoom_C
+clade_C_members_recreated
+```
+
+To compare the two trees in a numberical sense we can use a function comparePhylo()
+```{r}
+comparePhylo(zhou_tree, recreated_tree, plot = TRUE)
+```
+Comparing the tree using the Robinson-Foulds (RF) distance to attempt to get a numerical representation of how different the two trees are from one another.
+```{r}
+RF.dist(tree1=zhou_tree, tree2=recreated_tree, check.labels=FALSE, rooted=TRUE)
+```
+
+
+Adding color to the zhou tree:
+```{r}
+zhou_color<-ggtree(zhou_tree, layout="circular") +
+  labs(title="Zhou RAxML tree")+
+  geom_tiplab(aes(angle=angle), size =0.25, color='blue')+
+  geom_cladelabel(node=MRCAs[[1]], label="Clade A", 
+                  color=colors[1], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[1]], fill=colors[1]) +
+  geom_cladelabel(node=MRCAs[[2]], label="Clade B", 
+                  color=colors[2], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[2]], fill=colors[2]) +
+  geom_cladelabel(node=MRCAs[[3]], label="Clade C", 
+                  color=colors[3], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[3]], fill=colors[3]) +
+  geom_cladelabel(node=MRCAs[[4]], label="Clade D", 
+                  color=colors[4], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[4]], fill=colors[4]) +
+  geom_cladelabel(node=MRCAs[[5]], label="Clade E", 
+                  color=colors[5], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[5]], fill=colors[5]) +
+  geom_cladelabel(node=MRCAs[[6]], label="Clade F", 
+                  color=colors[6], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[6]], fill=colors[6]) +
+  geom_cladelabel(node=MRCAs[[7]], label="Clade G", 
+                  color=colors[7], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[7]], fill=colors[7]) +
+  geom_cladelabel(node=MRCAs[[8]], label="Clade H", 
+                  color=colors[8], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[8]], fill=colors[8]) +
+  geom_cladelabel(node=MRCAs[[9]], label="Clade I", 
+                  color=colors[9], offset=1, align=TRUE, fontsize = 3, angle =180)+
+  geom_hilight(node=MRCAs[[9]], fill=colors[9]) +
+  geom_cladelabel(node=MRCAs[[10]], label="Clade J", 
+                  color=colors[10], offset=1, align=TRUE, fontsize = 3,angle = 190)+
+  geom_hilight(node=MRCAs[[10]], fill=colors[10]) +
+  geom_cladelabel(node=MRCAs[[11]], label="Clade K", 
+                  color=colors[11], offset=1, align=TRUE, fontsize = 3, angle = 200)+
+  geom_hilight(node=MRCAs[[11]], fill=colors[11]) +
+  geom_cladelabel(node=MRCAs[[12]], label="Clade L", 
+                  color=colors[12], offset=1, align=TRUE, fontsize = 3,angle=210)+
+  geom_hilight(node=MRCAs[[12]], fill=colors[12]) +
+  geom_cladelabel(node=MRCAs[[13]], label="Clade M", 
+                  color=colors[13], offset=1, align=TRUE, fontsize = 3,angle=220)+
+  geom_hilight(node=MRCAs[[13]], fill=colors[13]) +
+  geom_cladelabel(node=MRCAs[[14]], label="Clade N", 
+                  color=colors[14], offset=1, align=TRUE, fontsize = 3,angle=230)+
+  geom_hilight(node=MRCAs[[14]], fill=colors[14]) +
+  geom_cladelabel(node=MRCAs[[15]], label="Clade O", 
+                  color=colors[15], offset=1, align=TRUE, fontsize = 3,angle= 240)+
+  geom_hilight(node=MRCAs[[15]], fill=colors[15]) +
+  geom_cladelabel(node=MRCAs[[16]], label="Clade P", 
+                  color=colors[16], offset=1, align=TRUE, fontsize = 3,angle = 250)+
+  geom_hilight(node=MRCAs[[16]], fill=colors[16]) +
+  geom_cladelabel(node=MRCAs[[17]], label="Clade Q", 
+                  color=colors[17], offset=1, align=TRUE, fontsize = 3, angle=260)+
+  geom_hilight(node=MRCAs[[17]], fill=colors[17]) +
+  geom_cladelabel(node=MRCAs[[18]], label="Clade R", 
+                  color=colors[18], offset=1, align=TRUE, fontsize = 3, angle = 270)+
+  geom_hilight(node=MRCAs[[18]], fill=colors[18]) +
+  geom_cladelabel(node=MRCAs[[19]], label="Clade S", 
+                  color=colors[19], offset=1, align=TRUE, fontsize = 3, angle = 280)+
+  geom_hilight(node=MRCAs[[19]], fill=colors[19]) +
+  geom_cladelabel(node=MRCAs[[20]], label="Clade T", 
+                  color=colors[20], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[20]], fill=colors[20]) +
+  geom_cladelabel(node=MRCAs[[21]], label="Clade U", 
+                  color=colors[21], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[21]], fill=colors[21]) +
+  geom_cladelabel(node=MRCAs[[22]], label="Clade V", 
+                  color=colors[22], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs[[22]], fill=colors[22]) +
+  geom_cladelabel(node=MRCAs[[23]], label="Clade 9-exon", angle= 40,
+                  color=colors[23], offset=1, align=TRUE, fontsize = 3, offset.text = 0.5)+
+  geom_hilight(node=MRCAs[[23]], fill=colors[23]) 
+
+```
+To visualize the new colored zhou tree:
+```{r}
+zhou_color
+```
+
+
+To create a colored version of the recreated tree:
+```{r}
+recreated_color<-ggtree(recreated_tree, layout="circular") +
+  labs(title="Recreated RAxML tree")+
+  geom_tiplab(aes(angle=angle), size =0.25, color='blue')+
+  geom_cladelabel(node=MRCAs_recreated[[1]], label="Clade A", 
+                  color=colors[1], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[1]], fill=colors[1]) +
+  geom_cladelabel(node=MRCAs_recreated[[2]], label="Clade B", 
+                  color=colors[2], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[2]], fill=colors[2]) +
+  geom_cladelabel(node=MRCAs_recreated[[3]], label="Clade C", 
+                  color=colors[3], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[3]], fill=colors[3]) +
+  geom_cladelabel(node=MRCAs_recreated[[4]], label="Clade D", 
+                  color=colors[4], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[4]], fill=colors[4]) +
+  geom_cladelabel(node=MRCAs_recreated[[5]], label="Clade E", 
+                  color=colors[5], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[5]], fill=colors[5]) +
+  geom_cladelabel(node=MRCAs_recreated[[6]], label="Clade F", 
+                  color=colors[6], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[6]], fill=colors[6]) +
+  geom_cladelabel(node=MRCAs_recreated[[7]], label="Clade G", 
+                  color=colors[7], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[7]], fill=colors[7]) +
+  geom_cladelabel(node=MRCAs_recreated[[8]], label="Clade H", 
+                  color=colors[8], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[8]], fill=colors[8]) +
+  geom_cladelabel(node=MRCAs_recreated[[9]], label="Clade I", 
+                  color=colors[9], offset=1, align=TRUE, fontsize = 3, angle =180)+
+  geom_hilight(node=MRCAs_recreated[[9]], fill=colors[9]) +
+  geom_cladelabel(node=MRCAs_recreated[[10]], label="Clade J", 
+                  color=colors[10], offset=1, align=TRUE, fontsize = 3,angle = 190)+
+  geom_hilight(node=MRCAs_recreated[[10]], fill=colors[10]) +
+  geom_cladelabel(node=MRCAs_recreated[[11]], label="Clade K", 
+                  color=colors[11], offset=1, align=TRUE, fontsize = 3, angle = 200)+
+  geom_hilight(node=MRCAs_recreated[[11]], fill=colors[11]) +
+  geom_cladelabel(node=MRCAs_recreated[[12]], label="Clade L", 
+                  color=colors[12], offset=1, align=TRUE, fontsize = 3,angle=210)+
+  geom_hilight(node=MRCAs_recreated[[12]], fill=colors[12]) +
+  geom_cladelabel(node=MRCAs_recreated[[13]], label="Clade M", 
+                  color=colors[13], offset=1, align=TRUE, fontsize = 3,angle=220)+
+  geom_hilight(node=MRCAs_recreated[[13]], fill=colors[13]) +
+  geom_cladelabel(node=MRCAs_recreated[[14]], label="Clade N", 
+                  color=colors[14], offset=1, align=TRUE, fontsize = 3,angle=230)+
+  geom_hilight(node=MRCAs_recreated[[14]], fill=colors[14]) +
+  geom_cladelabel(node=MRCAs_recreated[[15]], label="Clade O", 
+                  color=colors[15], offset=1, align=TRUE, fontsize = 3,angle= 240)+
+  geom_hilight(node=MRCAs_recreated[[15]], fill=colors[15]) +
+  geom_cladelabel(node=MRCAs_recreated[[16]], label="Clade P", 
+                  color=colors[16], offset=1, align=TRUE, fontsize = 3,angle = 250)+
+  geom_hilight(node=MRCAs_recreated[[16]], fill=colors[16]) +
+  geom_cladelabel(node=MRCAs_recreated[[17]], label="Clade Q", 
+                  color=colors[17], offset=1, align=TRUE, fontsize = 3, angle=260)+
+  geom_hilight(node=MRCAs_recreated[[17]], fill=colors[17]) +
+  geom_cladelabel(node=MRCAs_recreated[[18]], label="Clade R", 
+                  color=colors[18], offset=1, align=TRUE, fontsize = 3, angle = 270)+
+  geom_hilight(node=MRCAs_recreated[[18]], fill=colors[18]) +
+  geom_cladelabel(node=MRCAs_recreated[[19]], label="Clade S", 
+                  color=colors[19], offset=1, align=TRUE, fontsize = 3, angle = 280)+
+  geom_hilight(node=MRCAs_recreated[[19]], fill=colors[19]) +
+  geom_cladelabel(node=MRCAs_recreated[[20]], label="Clade T", 
+                  color=colors[20], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[20]], fill=colors[20]) +
+  geom_cladelabel(node=MRCAs_recreated[[21]], label="Clade U", 
+                  color=colors[21], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[21]], fill=colors[21]) +
+  geom_cladelabel(node=MRCAs_recreated[[22]], label="Clade V", 
+                  color=colors[22], offset=1, align=TRUE, fontsize = 3)+
+  geom_hilight(node=MRCAs_recreated[[22]], fill=colors[22]) +
+  geom_cladelabel(node=MRCAs_recreated[[23]], label="Clade 9-exon", angle= 40,
+                  color=colors[23], offset=1, align=TRUE, fontsize = 3, offset.text = 0.5)+
+  geom_hilight(node=MRCAs_recreated[[23]], fill=colors[23]) 
+```
+
+To visualize just the recreated tree by itself:
+
+```{r}
+recreated_color
+```
+
+The two trees can be visualized next to each other:
+```{r}
+grid.arrange(zhou_color,recreated_color,nrow=1)
+```
+
+Looks like I am currently missing a chunk of teh clade 9 exon clade in the recreated clade using the currently methodology. Will need to go back and look more closely.
+
+### A More Robust comparision option
+To make a more robust comparision between the trees rather than simply looking at them...
+Option1: AU test approximately unbiased test  from PAML calculates the likelihood per site to see if there is a difference 
+Option2: just look at the log-likelihood of the tree using -evalutate in raxml and if they are similar 
+Option3: Also can look at the baysian analysis 
