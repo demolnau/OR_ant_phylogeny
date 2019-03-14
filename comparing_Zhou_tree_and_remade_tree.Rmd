@@ -438,10 +438,32 @@ The two trees can be visualized next to each other:
 grid.arrange(zhou_color,recreated_color,nrow=1)
 ```
 
-Looks like I am currently missing a chunk of teh clade 9 exon clade in the recreated clade using the currently methodology. Will need to go back and look more closely.
+Looks like I am currently missing a chunk of teh clade 9 exon clade in the recreated clade using the currently methodology. Will need to go back and look more closely and look at why the full clade isn't being identified.
 
 ### A More Robust comparision option
 To make a more robust comparision between the trees rather than simply looking at them...
 Option1: AU test approximately unbiased test  from PAML calculates the likelihood per site to see if there is a difference 
 Option2: just look at the log-likelihood of the tree using -evalutate in raxml and if they are similar 
 Option3: Also can look at the baysian analysis 
+
+
+The easiest option is Option 2 so that is where I am going to start out at. I will need the trees, the alignments and the original model used. 
+```{}
+raxml-ng --evaluate --msa ant_phylogeny_alignment.aln --model LG4M+G4 --prefix E1 --threads 2 --tree RAxML_bestTree.ant_phylogeny_first_iteration_tree
+
+raxml-ng --evaluate --msa ant_phylogeny_alignment.aln --model LG4X --prefix E2 --threads 2 --tree RAxML_bestTree.ant_phylogeny_first_iteration_tree
+
+raxml-ng --evaluate --msa ant_phylogeny_alignment.aln --model PROTGTR --prefix E3 --threads 2 --tree RAxML_bestTree.ant_phylogeny_first_iteration_tree
+
+raxml-ng --evaluate --msa NEED_MULTIPLE_SEQ_ALN --model LG4M+G4 --prefix E4 --threads 2 --tree ant_OR_Zhou_nexus.txt;
+grep logLikelihood E*.raxml.log
+grep "AIC score" E*.raxml.log
+
+
+```
+EMAILED AUTHOR TO GET MSA
+
+
+** Mix Models? **
+Since we know there is a conserved region, shoulw we choose a different model for that region?
+
